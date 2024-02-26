@@ -5,7 +5,7 @@
     "dev": "next dev",
     "prettier": "prettier --write --ignore-unknown .",
     "prettier:check": "prettier --check --ignore-unknown .",
-    "seed": "node --env-file=.env ./scripts/seed-custom.js",
+    "seed": "node --env-file=.env ./scripts/seed.js",
     "start": "next start"
   },
   "dependencies": {
