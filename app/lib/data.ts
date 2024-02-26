@@ -9,10 +9,18 @@ import {
   LatestInvoice,
   User,
   Revenue,
+  Count,
 } from './definitions';
 import { formatCurrency } from './utils';
 
-const sql = postgres(process.env.POSTGRES_URL);
+interface SQL {
+  <T>(
+    arg0: TemplateStringsArray,
+    ...rest: ReadonlyArray<string | number>
+  ): Promise<T>;
+}
+
+const sql: SQL = postgres(process.env.POSTGRES_URL);
 
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
@@ -21,12 +29,10 @@ export async function fetchRevenue() {
   try {
     // Artificially delay a response for demo purposes.
     // Don't do this in production :)
-
     // console.log('Fetching revenue data...');
     // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    const data: ReadonlyArray<Revenue> =
-      await sql<Revenue>`SELECT * FROM revenue`;
+    const data = await sql<ReadonlyArray<Revenue>>`SELECT * FROM revenue`;
 
     // console.log('Data fetch completed after 3 seconds.');
 
@@ -39,7 +45,7 @@ export async function fetchRevenue() {
 
 export async function fetchLatestInvoices() {
   try {
-    const data: ReadonlyArray<LatestInvoiceRaw> = await sql<LatestInvoiceRaw>`
+    const data = await sql<ReadonlyArray<LatestInvoiceRaw>>`
       SELECT invoices.amount, customers.name, customers.image_url, customers.email, invoices.id
       FROM invoices
       JOIN customers ON invoices.customer_id = customers.id
@@ -62,9 +68,15 @@ export async function fetchCardData() {
     // You can probably combine these into a single SQL query
     // However, we are intentionally splitting them to demonstrate
     // how to initialize multiple queries in parallel with JS.
-    const invoiceCountPromise = sql`SELECT COUNT(*) FROM invoices`;
-    const customerCountPromise = sql`SELECT COUNT(*) FROM customers`;
-    const invoiceStatusPromise = sql`SELECT
+    const invoiceCountPromise = sql<
+      ReadonlyArray<Count>
+    >`SELECT COUNT(*) FROM invoices`;
+    const customerCountPromise = sql<
+      ReadonlyArray<Count>
+    >`SELECT COUNT(*) FROM customers`;
+    const invoiceStatusPromise = sql<
+      ReadonlyArray<{ paid: number; pending: number }>
+    >`SELECT
          SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS "paid",
          SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS "pending"
          FROM invoices`;
@@ -75,8 +87,8 @@ export async function fetchCardData() {
       invoiceStatusPromise,
     ]);
 
-    const numberOfInvoices = Number(data[0][0].count ?? '0');
-    const numberOfCustomers = Number(data[1][0].count ?? '0');
+    const numberOfInvoices = Number(data[0][0].count ?? 0);
+    const numberOfCustomers = Number(data[1][0].count ?? 0);
     const totalPaidInvoices = formatCurrency(data[2][0].paid ?? '0');
     const totalPendingInvoices = formatCurrency(data[2][0].pending ?? '0');
 
@@ -100,7 +112,7 @@ export async function fetchFilteredInvoices(
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
   try {
-    const invoices: ReadonlyArray<InvoicesTable> = await sql<InvoicesTable>`
+    const invoices = await sql<ReadonlyArray<InvoicesTable>>`
       SELECT
         invoices.id,
         invoices.amount,
@@ -130,7 +142,7 @@ export async function fetchFilteredInvoices(
 
 export async function fetchInvoicesPages(query: string) {
   try {
-    const count = await sql`SELECT COUNT(*)
+    const data = await sql<Count>`SELECT COUNT(*)
     FROM invoices
     JOIN customers ON invoices.customer_id = customers.id
     WHERE
@@ -141,7 +153,7 @@ export async function fetchInvoicesPages(query: string) {
       invoices.status ILIKE ${`%${query}%`}
   `;
 
-    const totalPages = Math.ceil(Number(count[0].count) / ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(Number(data.count) / ITEMS_PER_PAGE);
     return totalPages;
   } catch (error) {
     console.error('Database Error:', error);
@@ -151,7 +163,7 @@ export async function fetchInvoicesPages(query: string) {
 
 export async function fetchInvoiceById(id: string) {
   try {
-    const data: ReadonlyArray<InvoiceForm> = await sql`
+    const data = await sql<ReadonlyArray<InvoiceForm>>`
       SELECT
         invoices.id,
         invoices.customer_id,
@@ -176,7 +188,7 @@ export async function fetchInvoiceById(id: string) {
 
 export async function fetchCustomers() {
   try {
-    const data: CustomerField = await sql<CustomerField>`
+    const data = await sql<CustomerField>`
       SELECT
         id,
         name
@@ -193,8 +205,7 @@ export async function fetchCustomers() {
 
 export async function fetchFilteredCustomers(query: string) {
   try {
-    const data: ReadonlyArray<CustomersTableType> =
-      await sql<CustomersTableType>`
+    const data = await sql<ReadonlyArray<CustomersTableType>>`
 		SELECT
 		  customers.id,
 		  customers.name,
@@ -227,8 +238,10 @@ export async function fetchFilteredCustomers(query: string) {
 
 export async function getUser(email: string) {
   try {
-    const user = await sql`SELECT * FROM users WHERE email=${email}`;
-    return user.rows[0] as User;
+    const user = await sql<
+      ReadonlyArray<User>
+    >`SELECT * FROM users WHERE email=${email} limit 1`;
+    return user[0];
   } catch (error) {
     console.error('Failed to fetch user:', error);
     throw new Error('Failed to fetch user.');
