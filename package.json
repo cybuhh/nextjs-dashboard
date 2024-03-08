@@ -7,7 +7,8 @@
     "prettier": "prettier --write --ignore-unknown .",
     "prettier:check": "prettier --check --ignore-unknown .",
     "seed": "node --env-file=.env ./scripts/seed.js",
-    "start": "next start"
+    "start": "next start",
+    "gen-auth-secret": "openssl rand -base64 32"
   },
   "dependencies": {
     "@heroicons/react": "^2.0.18",
@@ -17,6 +18,7 @@
     "bcrypt": "^5.1.1",
     "clsx": "^2.0.0",
     "next": "^14.0.2",
+    "next-auth": "^5.0.0-beta.15",
     "postcss": "8.4.31",
     "postgres": "^3.4.3",
     "react": "18.2.0",
