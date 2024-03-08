@@ -1,5 +1,5 @@
-const postgres = require('postgres');
 import { unstable_noStore as noStore } from 'next/cache';
+import { sql } from './db';
 
 import {
   CustomerField,
@@ -13,15 +13,6 @@ import {
   Count,
 } from './definitions';
 import { formatCurrency } from './utils';
-
-interface SQL {
-  <T>(
-    arg0: TemplateStringsArray,
-    ...rest: ReadonlyArray<string | number>
-  ): Promise<ReadonlyArray<T>>;
-}
-
-const sql: SQL = postgres(process.env.POSTGRES_URL);
 
 export async function fetchRevenue() {
   // Add noStore() here to prevent the response from being cached.
